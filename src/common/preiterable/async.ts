@@ -6,6 +6,7 @@ import { Iterator as SyncIterator, Result as SyncResult } from './private/sync';
 
 // ----- Re-export
 export * from './private/async';
+export { Result as SyncResult} from './private/sync';
 
 // ----- Abstract bases
 export abstract class IterableBase<T> extends common.Iterable<base.Result<T>, Promise<void>> implements base.Iterable<T> {
@@ -25,6 +26,9 @@ export function isIterable (x: any): x is base.Iterable<any>;
 export function isIterable (x: any): x is base.Iterable<any> {
     return (x as base.Iterable<any>)[PreSymbol.asyncIterator] !== undefined;
 }
+
+export const isHeteroRecursable = <T>(x: T | base.HeteroRecursable<T>): x is base.HeteroRecursable<T> => isIterable(x);
+export const isHomoRecursable = <T>(x: T | base.HomoRecursable<T>): x is base.HomoRecursable<T> => isIterable(x);
 
 class WrappedIterator<T> extends IteratorBase<T> {
     constructor (private syncIter: SyncIterator<T>) { super() }
@@ -140,6 +144,90 @@ export class LazyArray<T> extends IterableBase<T> {
     preload () { return this.loadAll() }
 }
 
+// TODO: Adding Filter|Transform Iter[ator|able]s here begs the question
+// about caching/windowing/something. Do we expect the used to wrap any
+// new Filtered/Transformed Iter* in a LazyArray when necessary?
+// Do we provide an option for retaining some-but-not-all filter/transform
+// logic without re-applying when moving back and forth? => domain of caching/windowing.
+
+export class FilteredIterator<T, U extends T> extends IteratorBase<U> {
+    constructor (
+        private iterator: base.Iterator<T>,
+        private filter: (item: T) => item is U,
+    ) { super() }
+
+    // TODO: Again these lazy size calculations are misleading.
+    // Is size supposed to proxy for space in memory? logical length? ...
+    get size () { return this.iterator.size }
+
+    jump (term: base.Term) { return this.iterator.jump(term) }
+
+    async get (direction: base.Direction) {
+        while (true) {
+            const res = await this.iterator.get(direction);
+            if (res.done || this.filter(res.value)) return res as SyncResult<U>;
+        }
+    }
+}
+
+export class FilteredIterable<T, U extends T> extends IterableBase<U> {
+    
+    static from<T, U extends T> (
+        iterable: base.Iterable<T>,
+        filter: (item: T) => item is U,
+        id?: string | symbol,
+    ): FilteredIterable<T, U>;
+
+    static from<T> (
+        iterable: base.Iterable<T>,
+        filter: (item: T) => boolean,
+        id?: string | symbol,
+    ): FilteredIterable<T, T>;
+
+    static from<T, U extends T> (
+        iterable: base.Iterable<T>,
+        filter: (item: T) => item is U,
+        id?: string | symbol,
+    ) { return new FilteredIterable(iterable, filter, id) }
+    
+    private constructor (
+        private iterable: base.Iterable<T>,
+        private filter: (item: T) => item is U,
+        id?: string | symbol,
+    ) { super(id) }
+
+    protected build = () => new FilteredIterator(this.iterable[PreSymbol.asyncIterator](), this.filter);
+}
+
+// ----- Transform
+class TransformedIterator<T, U> extends IteratorBase<U> {
+    constructor (
+        private iterator: base.Iterator<T>,
+        private transform: (item: T) => Promise<U>,
+    ) { super() }
+
+    get size () { return this.iterator.size }
+
+    jump (term: base.Term) { return this.iterator.jump(term)}
+
+    async get (direction: base.Direction): base.Result<U> {
+        const res = await this.iterator.get(direction);
+        return (res.done)
+            ? res
+            : { done: false, value: await this.transform(res.value) };
+    }
+}
+
+export class TransformedIterable<T, U> extends IterableBase<U> {
+    constructor (
+        private iterable: base.Iterable<T>,
+        private transform: (item: T) => Promise<U>,
+        id?: string | symbol,
+    ) { super(id) }
+
+    protected build = () => new TransformedIterator(this.iterable[PreSymbol.asyncIterator](), this.transform);
+}
+
 // ----- Recursive stack
 // TODO: Can we have the stack ator/able constructors take arguments of type
 // Iterable<[Hetero|Homo]Recursable> / Iterator<[Hetero|Homo]Recursor>
@@ -153,6 +241,7 @@ export type HeteroStackLoader<T> = (recursable: base.HeteroRecursable<T>) => bas
 type HeteroStackCache<T> = sizeable.SymbolicLRUCacheFrom<base.HeteroRecursable<T>, HeteroStackLoader<T>>;
 
 class HeteroStackIterator<T> extends IteratorBase<T> {
+    // TODO: Remove and use 'isHeteroRecursable' utility function
     private static isRecursable = <T>(x: T | base.HeteroRecursable<T>): x is base.HeteroRecursable<T> => isIterable(x);
 
     private stack: sizeable.Stack<base.HeteroRecursor<T>>;
@@ -246,6 +335,7 @@ export class HeteroStack<T> extends IterableBase<T> {
 type HomoCollator<T> = AsyncIterator<T | base.HomoRecursable<T>>;
 
 class HomoCollatable<T> implements AsyncIterableIterator<base.HomoRecursable<T>> {
+    // TODO: Remove and use 'isHomoRecursable' utility function
     private static isRecursable = <T>(x: T | base.HomoRecursable<T>): x is base.HomoRecursable<T> => isIterable(x);
 
     private loadNext: () => Promise<IteratorResult<T | base.HomoRecursable<T>, void>>;
@@ -290,6 +380,7 @@ export type HomoStackLoader<T> = (recursable: base.HomoRecursable<T>) => base.Ho
 type HomoStackCache<T> = sizeable.SymbolicLRUCacheFrom<base.HomoRecursable<T>, HomoStackLoader<T>>;
 
 class HomoStackIterator<T> extends IteratorBase<T> {
+    // TODO: Remove and use 'isHomoRecursable' utility function
     private static isRecursable = <T>(x: T | base.HomoRecursable<T>): x is base.HomoRecursable<T> => isIterable(x);
 
     private stack: sizeable.Stack<base.HomoRecursor<T>>;

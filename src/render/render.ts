@@ -1,105 +1,107 @@
-import type { IpcRenderer } from 'electron';
-
 import { ipcRenderer } from 'electron';
-import * as pre from '../common/preiterable/async';
+
+import * as id from '../common/id';
+
+import * as optionstore from './optionstore';
 import * as store from './store';
-import * as parser from './parser';
-import * as loader from './loader';
+import * as parse from './parse';
+import * as load from './load';
 import * as pane from './pane';
 
 export default class Render {
     private static baseElementId = 'app';
+    private static instanceIdParamName = 'id';
 
     private static baseElement: HTMLElement;
-    private static ipc: IpcRenderer;
-    
+    private static instanceId: id.Id;
+
+    private static optionStore: optionstore.Store;
     private static store: store.Store;
-    private static parser: parser.Parser;
-    private static loader: loader.Loader;
-    private static panes: Panes;
+    private static display: pane.Display;
+    private static loader: load.Loader;
+    private static parser: parse.Parser;
 
-    static run() {
-        const baseElement = document.getElementById(Render.baseElementId);
-        if (baseElement === null) {
-            throw new Error(`failed to find base element: ${Render.baseElementId}`);
-        }
+    static run () {
+        pane.define();
 
-        Render.baseElement = baseElement;
-        Render.ipc = ipcRenderer;
+        Render.baseElement = Render.findBaseElement();
+        Render.instanceId = Render.parseInstanceId();
+
+        Render.initialize()
+            .then(Render.addListeners)
+            .catch(x => console.log('initialize error', x));
+    }
+
+    private static findBaseElement () {
+        const res = document.getElementById(Render.baseElementId);
+        if (res === null) throw new Error(`failed to find base element for id: ${Render.baseElementId}`);
+        return res;
+    }
+
+    private static parseInstanceId () {
+        const params = new URLSearchParams(window.location.search.substring(1));
+        const idStr = params.get(Render.instanceIdParamName);
+        if (idStr === null) throw new Error(`failed to read search parameter: ${Render.instanceIdParamName}`);
+        return id.fromString(idStr);        
+    }
+
+    private static async initialize () {
+        Render.optionStore = new optionstore.Store(ipcRenderer);
+        const opts = await Render.optionStore.get(Render.instanceId);
+
+        Render.store = new store.Store(ipcRenderer);
+        Render.display = new pane.Display('display', opts.pane);
+        Render.loader = new load.Loader(opts.load);
         
-        Render.store = new store.Store(Render.ipc);
-        Render.parser = new parser.Parser();
-        Render.loader = new loader.Loader({ cacheSize: 1024 });
+        const httpHandler = new parse.handlers.http.Handler({ /* TODO */ });
+        const fsHandler = new parse.handlers.fs.Handler({ /* TODO */ });
+        
+        Render.parser = new parse.Parser(opts.parse, {
+            http: item => httpHandler.handle(item),
+            https: item => httpHandler.handle(item),
+            fs: item => fsHandler.handle(item),
+        });
 
-        Panes.define();
-        Render.panes = new Panes(Render.store, Render.parser, Render.loader);
+        Render.baseElement.appendChild(Render.display);
 
-        Render.baseElement.appendChild(Render.panes.display);
-    }
-}
-
-class Panes {
-    static define () { pane.defineAll() }
-
-    display: pane.Display;
-    select: pane.Select;
-
-    constructor (
-        private store: store.Store,
-        private parser: parser.Parser,
-        private loader: loader.Loader,
-    ) {
-        this.display = new pane.Display();
-        this.select = new pane.Select();
-
-        this.store.onChange(event => this.handleStoreChange(event));
-        window.addEventListener('keydown', event => this.handleKeyDown(event));
+        const seedIds = await Render.store.list();
+        if (seedIds.length > 0) {
+            await Render.displayCollection(seedIds[0]);
+        }
     }
 
-    private processFromStore(id: symbol) {
-        const storeRes = this.store.get(id);
-        if (storeRes === undefined) return undefined;
-
-        const seed = this.parser.parse(storeRes);
-        const loadedItems = this.loader.load(pre.HeteroStack.flatten(seed));
-        return loadedItems;
+    private static addListeners () {
+        Render.store.addChangeListener(event => Render.handleStoreChange(event));
+        window.addEventListener('keydown', event => Render.handleKeyDown(event));
     }
 
-    private handleStoreChange (event: store.ChangeEvent) {
+    private static async displayCollection (seedId: symbol) {
+        const seedData = await Render.store.get(seedId);
+        const parsedData = Render.parser.parse(seedData.iterable, seedData.meta.ctx.parse);
+        const loadedData = Render.loader.load(parsedData, seedData.meta.ctx.load);
+
+        Render.display.iterable = loadedData;
+    }
+
+    private static handleStoreChange (event: store.ChangeEvent) {
         switch (event.op) {
             case 'set':
-                if (event.ids.length < 1) return;
-                
-                this.select.add(...event.ids);
-
-                if (this.display.iterableId === undefined) {
-                    const processed = this.processFromStore(event.ids[0]);
-                    this.display.update(processed);
-                }
-
+                Render.displayCollection(event.id);
                 break;
             case 'delete':
-                this.select.delete(...event.ids);
-                
-                const includesDisplay = this.display.iterableId !== undefined && event.ids.includes(this.display.iterableId);
-                if (includesDisplay) this.display.update(undefined);
-
-                break;
+                // TODO
             case 'clear':
-                this.select.clear();
-                this.display.update(undefined);
-
-                break;
+                // TODO
         }
     }
 
-    private handleKeyDown (event: KeyboardEvent) {
+    private static handleKeyDown (event: KeyboardEvent) {
         switch (event.key) {
             case 'ArrowLeft':
-                this.display.move('previous');
+                Render.display.move('previous');
                 break;
             case 'ArrowRight':
-                this.display.move('next');
+                Render.display.move('next');
                 break;
         }
     }

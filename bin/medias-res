@@ -2,6 +2,6 @@
 
 rootDir="$(cd $(dirname "${BASH_SOURCE[0]}")/.. && pwd)"
 electron="$rootDir/node_modules/.bin/electron"
-entry="$rootDir/build/main.js"
+entry="$rootDir/build"
 
 $electron $entry "$@"

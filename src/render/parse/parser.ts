@@ -1,48 +1,54 @@
-import type * as data from '../data';
+import type * as classified from '../../data/classified';
+import type * as handler from './handler';
+import type * as options from './options';
+import type * as context from './context';
 
 import * as pre from '../../common/preiterable/async';
-import { handle as handleHTTP } from './http';
-import { handle as handleFS } from './fs';
+import * as parsed from '../../data/parsed';
+import * as filters from '../../filters/parsed';
 
-export type Handler = (raw: data.common.Item) => Promise<data.Item | data.Seed>;
-export type Parser = (raw: pre.Iterable<data.common.Item>) => data.Seed;
+export type Options = options.Complete;
+export type Context = context.Complete;
 
-export async function handleBasic (raw: data.common.Item) {
-    switch (raw.protocol) {
-        case 'http':
-        case 'https':
-           return handleHTTP(raw);
-        case 'fs':
-            return handleFS(raw);
-    }
-}
+export class Parser implements handler.Handler<classified.Protocol> {
+    private stackLoader: pre.HeteroStackLoader<parsed.Item>;
 
-export function parseBasic (raw: pre.Iterable<data.common.Item>, id?: string | symbol) {
-    return new ParseIterable(raw, item => handleBasic(item), id);
-}
-
-class ParseIterator extends pre.IteratorBase<data.Item | data.Seed> {
     constructor (
-        private iterator: pre.Iterator<data.common.Item>,
-        private handler: Handler,
-    ) { super() }
-
-    get size () { return this.iterator.size }
-
-    jump (term: pre.Term) { return this.iterator.jump(term) }
-
-    async get (direction: pre.Direction): pre.Result<data.Item | data.Seed> {
-        const res = await this.iterator.get(direction);
-        return (res.done) ? res : { done: false, value: await this.handler(res.value) };
+        private opts: Options,
+        private handlers: { [ P in classified.Protocol ]: handler.Function<P> },
+    ) {
+        this.stackLoader = (opts.cacheSize > 0 )
+            ? pre.HeteroStack.cachedLoader(opts.cacheSize)
+            : pre.HeteroStack.basicLoader;
     }
-}
 
-class ParseIterable extends pre.IterableBase<data.Item | data.Seed> {
-    constructor (
-        private iterable: pre.Iterable<data.common.Item>,
-        private handler: Handler,
-        id?: string | symbol,
-    ) { super(id) }
+    private handlerFor<P extends classified.Protocol> (protocol: P): handler.Function<P>;
+    private handlerFor (protocol: classified.Protocol) {
+        return this.handlers[protocol];
+    }
 
-    protected build() { return new ParseIterator(this.iterable[pre.Symbol](), this.handler) }
+    private collate (input: classified.Iterable): parsed.Recursable {
+        return new pre.TransformedIterable(input, item => this.handle(item));
+    }
+
+    private flatten (recursable: parsed.Recursable, ctx: Context): parsed.Iterable {
+        return (ctx.recurse)
+            ? pre.HeteroStack.flatten(recursable, this.stackLoader)
+            : pre.FilteredIterable.from(
+                recursable,
+                (x): x is parsed.Item => !parsed.isRecursable(x)
+            );
+    }
+
+    handle (item: classified.Item) {
+        return this.handlerFor(item.protocol)(item);
+    }
+
+    parse (input: classified.Iterable, ctx: Context): parsed.Iterable {
+        const filterFunc = filters.merge(...ctx.filters);
+        
+        const recursable = this.collate(input);
+        const iterable = this.flatten(recursable, ctx);
+        return pre.FilteredIterable.from(iterable, filterFunc);
+    }
 }

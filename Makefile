@@ -18,6 +18,7 @@ cmd_jest := node_modules/.bin/jest
 node_modules: package.json
 	$(info Installing node_modules)
 	@npm install
+	@touch $@
 
 $(cmd_esbuild) $(cmd_electron) $(cmd_jest): node_modules
 
@@ -31,23 +32,30 @@ deps.clean: ## Clean dependencies
 # ----- Build
 .PHONY: build build.clean
 
-build_cmd := scripts/build.mjs
+build_target_package := build/package.json
+build_target_main 	 := build/main.js
+build_target_render  := build/render.js
 
 build_deps_ts := $(shell find src -name '*.ts')
 
-build_target_main := build/main.js
-build_target_render := build/render.js
-	
-$(build_cmd): $(cmd_esbuild)
+build_cmd_js 	  := scripts/build-js.mjs
+build_cmd_package := scripts/build-package.mjs
 
-build/%.js: src/%.mjs $(build_deps_ts) $(build_cmd)
+$(build_cmd_js): $(cmd_esbuild)
+
+build/%.js: src/%.mjs $(build_deps_ts) $(build_cmd_js)
 	$(info Building $@)
-	@$(build_cmd) $< $@
+	@$(build_cmd_js) $< $@
 
-build: $(build_target_main) $(build_target_render) ## Build all
+$(build_target_package): package.json $(build_cmd_package)
+	$(info Building $@)
+	@$(build_cmd_package) $@ $(build_target_main)
+
+build: $(build_target_main) $(build_target_render) $(build_target_package) ## Build all
 
 build.clean: ## Clean all build artifacts
 	$(info Cleaning build artifacts)
+	@rm $(build_target_package) > /dev/null 2>&1 || true
 	@rm $(build_target_main) > /dev/null 2>&1 || true
 	@rm $(build_target_render) > /dev/null 2>&1 || true
 

@@ -1,9 +1,6 @@
 {
-  "name": "electron-img",
+  "name": "medias-res",
   "version": "0.1.0",
-  "scripts": {
-    "start": "electron build/main.js"
-  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -19,6 +16,11 @@
     "typescript": "^4.2.3"
   },
   "dependencies": {
+    "fp-ts": "^2.10.5",
+    "io-ts": "^2.2.16",
+    "io-ts-types": "^0.5.16",
+    "monocle-ts": "^2.3.11",
+    "newtype-ts": "^0.3.4",
     "valid-url": "^1.0.9"
   }
 }
