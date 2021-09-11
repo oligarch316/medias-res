@@ -26,10 +26,8 @@ export class Display {
 
     get webContents () { return this.win.webContents }
 
-    load (instanceId: id.Id) {
-        const filePath = Display.htmlFilePath;
-        const queryRecord = { id: id.toString(instanceId) };
-
-        return this.win.loadFile(filePath, { query: queryRecord });
-    }
+    load = (instanceId: id.Instance) => this.win.loadFile(
+        Display.htmlFilePath,
+        { query: id.instanceToQueryRecord(instanceId) },
+    );
 }

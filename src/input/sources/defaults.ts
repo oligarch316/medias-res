@@ -46,6 +46,12 @@ export function load (m: meta.Meta): LoadResult {
                 width: 800,
             },
             classify: { cacheSize: 0 },
+            log: {
+                level: (m.mode === 'dev') ? 'debug' : 'warn',
+                format: 'json',
+                output: 'stderr',
+            },
+            newInstance: false,
         },
         render: {
             pane: {

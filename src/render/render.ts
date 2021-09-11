@@ -2,96 +2,107 @@ import { ipcRenderer } from 'electron';
 
 import * as id from '../common/id';
 
-import * as optionstore from './optionstore';
-import * as store from './store';
-import * as parse from './parse';
 import * as load from './load';
+import * as log from './log';
 import * as pane from './pane';
+import * as parse from './parse';
+import * as store from './store';
+
+type CollectionData = store.collection.Data & { id: id.Collection };
 
 export default class Render {
-    private static baseElementId = 'app';
-    private static instanceIdParamName = 'id';
+    private static readonly baseElementId = 'app';
 
     private static baseElement: HTMLElement;
-    private static instanceId: id.Id;
-
-    private static optionStore: optionstore.Store;
-    private static store: store.Store;
-    private static display: pane.Display;
-    private static loader: load.Loader;
+    private static instanceId: id.Instance;
+    private static optionsStore: store.options.Store;
+    
+    private static logger: log.Logger;
     private static parser: parse.Parser;
+    private static loader: load.Loader;
+    private static collectionStore: store.collection.Store;
+    private static display: pane.Display;
+
+    private static currentCollection: CollectionData | undefined;
 
     static run () {
         pane.define();
 
         Render.baseElement = Render.findBaseElement();
-        Render.instanceId = Render.parseInstanceId();
+        Render.instanceId = id.instanceFromLocation(window.location);
+        Render.optionsStore = new store.options.Store(ipcRenderer);
 
         Render.initialize()
-            .then(Render.addListeners)
-            .catch(x => console.log('initialize error', x));
+            .then(() => {
+                Render.collectionStore.addChangeListener(event => Render.handleCollectionStoreChange(event));
+                window.addEventListener('keydown', event => Render.handleKeyDown(event));
+
+                Render.collectionStore.load();
+            })
+            .catch(reason => { throw new Error(reason) /* TODO */ });
     }
 
     private static findBaseElement () {
         const res = document.getElementById(Render.baseElementId);
-        if (res === null) throw new Error(`failed to find base element for id: ${Render.baseElementId}`);
+        if (res === null) throw new Error(`failed to find base element with id: ${Render.baseElementId}`);
         return res;
     }
 
-    private static parseInstanceId () {
-        const params = new URLSearchParams(window.location.search.substring(1));
-        const idStr = params.get(Render.instanceIdParamName);
-        if (idStr === null) throw new Error(`failed to read search parameter: ${Render.instanceIdParamName}`);
-        return id.fromString(idStr);        
-    }
-
     private static async initialize () {
-        Render.optionStore = new optionstore.Store(ipcRenderer);
-        const opts = await Render.optionStore.get(Render.instanceId);
+        const opts = await Render.optionsStore.get(Render.instanceId);
 
-        Render.store = new store.Store(ipcRenderer);
-        Render.display = new pane.Display('display', opts.pane);
-        Render.loader = new load.Loader(opts.load);
-        
+        Render.logger = new log.Logger({ todo: 'TODO' }, ipcRenderer);
+
         const httpHandler = new parse.handlers.http.Handler({ /* TODO */ });
         const fsHandler = new parse.handlers.fs.Handler({ /* TODO */ });
-        
+
         Render.parser = new parse.Parser(opts.parse, {
             http: item => httpHandler.handle(item),
             https: item => httpHandler.handle(item),
             fs: item => fsHandler.handle(item),
         });
 
+        Render.loader = new load.Loader(opts.load);
+        Render.collectionStore = new store.collection.Store(ipcRenderer, Render.instanceId);
+        Render.display = new pane.Display('display', opts.pane);
+
         Render.baseElement.appendChild(Render.display);
+    }
 
-        const seedIds = await Render.store.list();
-        if (seedIds.length > 0) {
-            await Render.displayCollection(seedIds[0]);
+    private static async setCurrentCollection (collectionId: id.Collection | undefined) {
+        if (collectionId === undefined) {
+            Render.display.iterable = undefined;
+            Render.currentCollection = undefined;
+            return;
         }
+
+        const data = await Render.collectionStore.get(collectionId);
+        const parsedIterable = Render.parser.parse(data.iterable, data.ctx.parse);
+        const loadedIterable = Render.loader.load(parsedIterable, data.ctx.load);
+        
+        Render.display.iterable = loadedIterable;
+        Render.currentCollection = { id: collectionId, ...data };
     }
 
-    private static addListeners () {
-        Render.store.addChangeListener(event => Render.handleStoreChange(event));
-        window.addEventListener('keydown', event => Render.handleKeyDown(event));
-    }
-
-    private static async displayCollection (seedId: symbol) {
-        const seedData = await Render.store.get(seedId);
-        const parsedData = Render.parser.parse(seedData.iterable, seedData.meta.ctx.parse);
-        const loadedData = Render.loader.load(parsedData, seedData.meta.ctx.load);
-
-        Render.display.iterable = loadedData;
-    }
-
-    private static handleStoreChange (event: store.ChangeEvent) {
+    private static handleCollectionStoreChange (event: store.collection.ChangeEvent) {
         switch (event.op) {
             case 'set':
-                Render.displayCollection(event.id);
+                if (Render.currentCollection !== undefined) return;
+                
+                Render.setCurrentCollection(event.collectionId);
                 break;
             case 'delete':
-                // TODO
+                if (Render.currentCollection === undefined) return;
+                if (Render.currentCollection.id !== event.collectionId) return;
+
+                const remainingIds = Render.collectionStore.list();
+                if (remainingIds.length < 1) return;
+                
+                Render.setCurrentCollection(remainingIds[0]);
+                break;
             case 'clear':
-                // TODO
+                Render.setCurrentCollection(undefined);
+                break;
         }
     }
 

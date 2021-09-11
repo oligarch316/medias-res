@@ -3,6 +3,7 @@ import type * as options from '../options';
 
 import * as codec from '../../common/codec';
 import * as filters from '../../filters';
+import * as log from '../../main/log/options';
 import * as meta from '../meta';
 
 import * as either from 'fp-ts/Either';
@@ -20,6 +21,7 @@ const Config = codec.partial({
         width: codec.number,
     }),
     filters: codec.array(filters.Options), // TODO: Make "set-like"
+    log: log.Incomplete,
     mode: meta.Mode,
     recurse: codec.boolean,
 });
@@ -78,6 +80,7 @@ function encodeOptions (config: Config): options.Incomplete {
                 height: config.display?.height,
                 width: config.display?.width,
             },
+            log: config.log,
         },
         render: {
             load: { cacheSize: config.cacheSize?.load },

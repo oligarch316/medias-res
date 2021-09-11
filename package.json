@@ -8,6 +8,7 @@
     "@types/jest": "^26.0.23",
     "@types/minimist": "^1.2.1",
     "@types/valid-url": "^1.0.3",
+    "@types/winston": "^2.4.4",
     "electron": "^11.2.3",
     "esbuild": "^0.8.42",
     "jest": "^26.6.3",
@@ -21,6 +22,7 @@
     "io-ts-types": "^0.5.16",
     "monocle-ts": "^2.3.11",
     "newtype-ts": "^0.3.4",
-    "valid-url": "^1.0.9"
+    "valid-url": "^1.0.9",
+    "winston": "^3.3.3"
   }
 }

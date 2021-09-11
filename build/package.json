@@ -10,7 +10,8 @@
     "io-ts-types": "^0.5.16",
     "monocle-ts": "^2.3.11",
     "newtype-ts": "^0.3.4",
-    "valid-url": "^1.0.9"
+    "valid-url": "^1.0.9",
+    "winston": "^3.3.3"
   },
   "main": "main.js"
 }

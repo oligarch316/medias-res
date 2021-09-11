@@ -2,6 +2,7 @@ import type * as context from '../context';
 import type * as options from '../options';
 
 import * as codec from '../../common/codec';
+import * as log from '../../main/log/options';
 import * as meta from '../meta';
 
 import * as either from 'fp-ts/Either';
@@ -12,7 +13,11 @@ const filePathFlag = codec.cli.singleArgFlag(codec.types.FilePathFromString);
 
 const flagSet = {
     '--config': filePathFlag,
+    '--log-level': codec.cli.singleArgFlag(log.Level.fromString),
+    '--log-format': codec.cli.singleArgFlag(log.Format.fromString),
+    '--log-output': codec.cli.singleArgFlag(log.Output.fromString),
     '--mode': modeFlag,
+    '--new-window': codec.cli.booleanFlag,
     '--recurse': codec.cli.booleanFlag,
     // TODO: Filters
 };
@@ -40,7 +45,16 @@ function encodeContext (flags: Flags): context.Incomplete {
 }
 
 function encodeOptions (flags: Flags): options.Incomplete {
-    return {};
+    return {
+        main: {
+            log: {
+                level: flags['--log-level'],
+                format: flags['--log-format'],
+                output: flags['--log-output'],
+            },
+            newInstance: flags['--new-window'],
+        },
+    };
 }
 
 export type LoadResult = {

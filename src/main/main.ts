@@ -7,7 +7,7 @@ import * as input from '../input';
 
 import { setupCsp } from './csp';
 import * as classify from './classify';
-import * as optionstore from './optionstore';
+import * as log from './log';
 import * as pane from './pane';
 import * as store from './store';
 
@@ -16,86 +16,153 @@ const collectionInfoTODO: collection.Info = {
     description: 'TODO: collection description',
 };
 
+type CollectionData = {
+    info: collection.Info;
+    ctx: input.context.Complete;
+    args: string[];
+};
+
 export default class Main {
-    private static instance: Instance;
+    private static readonly instanceIdFactory = id.factory();
+    private static readonly collectionIdFactory = id.factory();
 
+    private static optionsStore: store.options.Store;
+    private static instances: Map<id.Instance, Instance>;
+    private static mostRecentInstanceId: id.Instance;
+    
+    private static logger: log.Logger;
+    
     static run () {
-        // Enforce single instance
+        // Enforce "single instance"
         if (!app.requestSingleInstanceLock()) app.quit();
-
-        // TODO: Remove me
-        console.log('versions:', process.versions);
 
         app.once('ready', Main.onceReady);
     }
 
     private static onceReady () {
+        // Set up everything that doesn't require loaded input
+        Main.optionsStore = new store.options.Store(ipcMain);
+        Main.instances = new Map();
         setupCsp(session.defaultSession);
 
-        const loadResult = input.sources.load(
-            process.cwd(),
-            process.argv.slice(2),
-        );
+        // Initialize everything else that does need loaded input
+        Main.initializeFirstInstance();
 
-        console.log('input load result:');
-        console.log('> options:', loadResult.opts);
-        console.log('> context:', loadResult.ctx);
-        console.log('> args:', loadResult.args);
-
-        Main.instance = new Instance(loadResult.opts);
-        Main.instance.load()
-            .then(() => Main.initialize(loadResult.ctx, loadResult.args))
-            .catch(x => console.log('load error', x));
+        // Register handler for "second instance"
+        app.on('second-instance', Main.onSecondInstance);
     }
 
-    private static initialize (ctx: input.context.Complete, args: string[]) {
-        Main.instance.addCollection(collectionInfoTODO, ctx, args);
-        app.on('second-instance', Main.onSecondInstance);
+    private static initializeFirstInstance () {
+        // Load initial input
+        const initialLoadResult = input.sources.load(
+            process.cwd(),
+            process.argv.slice(2), // TODO: Un-magic-number this
+        );
+
+        // Force the "newInstance" option to be true during initialization
+        initialLoadResult.opts.main.newInstance = true;
+
+        // Create logger and log "start-up" message(s)
+        Main.logger = new log.Logger(initialLoadResult.opts.main.log, ipcMain);
+        
+        Main.logger.info({ message: 'versions', ...process.versions });
+        Main.logger.info({ message: 'loaded initial input', ...initialLoadResult });
+
+        // Pass along to normal processing
+        Main.handleLoadResult(initialLoadResult);
     }
 
     private static onSecondInstance (_: Event, args: string[], workingDirectory: string) {
         const loadResult = input.sources.load(workingDirectory, args);
-        Main.instance.addCollection(
-            collectionInfoTODO,
-            loadResult.ctx,
-            loadResult.args,
-        );
+
+        Main.logger.info({ message: 'loaded input', ...loadResult });
+
+        Main.handleLoadResult(loadResult);
+    }
+
+    private static addInstance (opts: input.options.Complete): id.Instance {
+        const instanceId = Main.instanceIdFactory.next().value;
+        const instance = new Instance(instanceId, opts);
+
+        Main.optionsStore.add(instanceId, opts);
+        Main.instances.set(instanceId, instance);
+        Main.mostRecentInstanceId = instanceId;
+
+        // No need to await instance.load(), it's the renderer's responsibility to ...
+        //  • set up ipc message handlers
+        //  • send ipc requests for initial data
+        // ... in a reliable manner
+        instance.load();
+
+        Main.logger.info({
+            message: 'created new instance',
+            instanceId: instanceId,
+        });
+        
+        return instanceId;
+    }
+
+    private static addCollection (instanceId: id.Instance, data: CollectionData): id.Collection {
+        const instance = Main.instances.get(instanceId);
+        if (instance === undefined) throw new Error(`invalid instance id: ${instanceId}`);
+
+        const collectionId = Main.collectionIdFactory.next().value;
+        instance.addCollection(collectionId, data);
+
+        Main.logger.info({
+            message: 'added new collection to instance',
+            instanceId: instanceId,
+            collectionId: collectionId,
+        });
+
+        return collectionId;
+    }
+
+    private static handleLoadResult (loadResult: input.sources.LoadResult) {
+        const instanceId = (loadResult.opts.main.newInstance)
+            ? Main.addInstance(loadResult.opts)
+            : Main.mostRecentInstanceId;
+
+        const collectionData = {
+            info: collectionInfoTODO,
+            ctx: loadResult.ctx,
+            args: loadResult.args,
+        };
+
+        Main.addCollection(instanceId, collectionData);
     }
 }
 
 class Instance {
-    private static idFactory = id.factory();
-
-    private instanceId: id.Id;
-    private store: store.Store;
-    private optionStore: optionstore.Store;
-    private display: pane.Display;
     private classifier: classify.Classifier;
-
-    constructor (private opts: input.options.Complete) {
-        this.instanceId = Instance.idFactory.next().value;
-        this.store = new store.Store(ipcMain);
-        this.optionStore = new optionstore.Store(ipcMain);
-        this.display = new pane.Display(opts.main.pane);
-        
+    private collectionStore: store.collection.Store;
+    private display: pane.Display;
+    
+    constructor (readonly instanceId: id.Instance, private opts: input.options.Complete) {
         const httpHandler = new classify.handlers.http.Handler({ /* TODO */ });
         const fsHandler = new classify.handlers.fs.Handler({ /* TODO */ });
-        
+
         this.classifier = new classify.Classifier(
             opts.main.classify,
             (raw, ctx) => httpHandler.handle(raw, ctx),
             (raw, ctx) => fsHandler.handle(raw, ctx),
         );
+        this.collectionStore = new store.collection.Store(ipcMain, instanceId);
+        this.display = new pane.Display(opts.main.pane);
     }
 
     async load () {
-        this.optionStore.add(this.instanceId, this.opts.render);
         await this.display.load(this.instanceId);
-        this.store.addRendererTarget(this.display.webContents);
+        this.collectionStore.addRendererTarget(this.display.webContents);
     }
 
-    addCollection (info: collection.Info, ctx: input.context.Complete, args: string[]) {
-        const seed = this.classifier.classify(args, ctx.main.classify);
-        this.store.set(seed, { info: info, ctx: ctx.render });
+    addCollection (collectionId: id.Collection, data: CollectionData) {
+        const iterable = this.classifier.classify(data.args, data.ctx.main.classify);
+        
+        this.collectionStore.set(collectionId, {
+            info: data.info,
+            ctx: data.ctx.render,
+            iterable: iterable,
+        });
     }
 }
