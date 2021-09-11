@@ -1,2 +1,6 @@
 .vscode/
 node_modules/
+
+build/package.json
+build/main.js
+build/render.js
