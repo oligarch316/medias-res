@@ -1,3 +1,4 @@
+import * as mergeable from '../mergeable';
 import * as t from 'io-ts';
 import * as either from 'fp-ts/Either';
 import * as flags from './flags';
@@ -79,13 +80,20 @@ export function command<S extends FlagSet> (flagSet: S, name: string): Command<S
             for (let item = cmdInput.next(); item !== undefined; item = cmdInput.next()) {
                 if (!item.isFlag) {
                     res.args.push(item.value);
-                    continue
+                    continue;
                 }
 
-                const e = flagSet[item.value].validate(cmdInput, c);
-                if (either.isLeft(e)) return e; // TODO: Better error info
+                const flagCodec = flagSet[item.value];
+                const eitherVal = flagCodec.validate(cmdInput, c);
 
-                res.flags[item.value] = e.right;
+                if (either.isLeft(eitherVal)) return eitherVal; // TODO: Better error info
+
+                const existingVal = res.flags[item.value];
+                const shouldMerge = existingVal !== undefined && mergeable.isMergeableC(flagCodec);
+
+                res.flags[item.value] = (shouldMerge)
+                    ? flagCodec.merge(existingVal, eitherVal.right)
+                    : eitherVal.right;
             }
 
             return t.success(res);
