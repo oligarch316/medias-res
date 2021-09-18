@@ -12,11 +12,9 @@ export type Flag<T> = t.Type<T, string[], FlagInput>;
 export const booleanFlag: Flag<boolean> = new t.Type(
     'BooleanFlag',
     t.boolean.is,
-    (i, c) => {
+    i => {
         const arg = i.peek();
         switch (arg) {
-            case undefined:
-                return t.success(true);
             case 'true':
                 i.consume();
                 return t.success(true);
@@ -24,8 +22,7 @@ export const booleanFlag: Flag<boolean> = new t.Type(
                 i.consume();
                 return t.success(false);
         }
-        return t.failure(i, c);
-
+        return t.success(true);
     },
     a => [ String(a) ],
 );
