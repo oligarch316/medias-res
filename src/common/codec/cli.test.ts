@@ -5,17 +5,17 @@ import * as cli from './cli';
 import { PathReporter } from 'io-ts/PathReporter'
 
 const testFlags = {
-    '--testBoolOne': cli.booleanFlag,
-    '--testBoolTwo': cli.booleanFlag,
-    '--testStringOne': cli.stringFlag,
-    '--testStringTwo': cli.stringFlag,
-    '--testNumberOne': cli.numberFlag,
-    '--testNumberTwo': cli.numberFlag,
-    '--testIntegerOne': cli.integerFlag,
-    '--testIntegerTwo': cli.integerFlag,
+    '--testBoolOne': cli.flag.boolean,
+    '--testBoolTwo': cli.flag.boolean,
+    '--testStringOne': cli.flag.string,
+    '--testStringTwo': cli.flag.string,
+    '--testNumberOne': cli.flag.number,
+    '--testNumberTwo': cli.flag.number,
+    '--testIntegerOne': cli.flag.integer,
+    '--testIntegerTwo': cli.flag.integer,
 };
 
-const TestCommand = cli.command(testFlags, 'testCommand');
+const TestCommand = cli.command.from(testFlags, 'testCommand');
 type TestCommand = t.TypeOf<typeof TestCommand>;
 
 function decode (input: string[], expected: TestCommand) {

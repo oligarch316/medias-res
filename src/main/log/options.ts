@@ -10,7 +10,7 @@ export const formats = [
     'json',
 ] as const;
 
-export const Format = codec.types.LiteralUnion.from(formats, 'LogFormat');
+export const Format = codec.literalUnion(formats, 'LogFormat');
 export type Format = codec.TypeOf<typeof Format>;
 
 export const outputs = [
@@ -18,7 +18,7 @@ export const outputs = [
     'stderr',
 ] as const;
 
-export const Output = codec.types.LiteralUnion.from(outputs, 'LogOutput');
+export const Output = codec.literalUnion(outputs, 'LogOutput');
 export type Output = codec.TypeOf<typeof Output>;
 
 const props = {

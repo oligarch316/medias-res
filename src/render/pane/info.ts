@@ -8,6 +8,9 @@ export function define () {
     Element.define();
 }
 
+export type Options = options.InfoComplete;
+export type MediaMode = options.InfoMediaMode;
+
 export class Message extends HTMLParagraphElement {
     static readonly namespace = 'mr-info-message';
     static define (name = Message.namespace) {
@@ -38,7 +41,7 @@ export class Media extends HTMLParagraphElement {
         return `${(b / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
     }
 
-    private static formatItemData (item: loaded.Item, mode: options.InfoMediaMode) {
+    private static formatItemData (item: loaded.Item, mode: MediaMode) {
         const sizeStr = Media.formatBytes(item.size);
         const mimeStr = mime.toString(item.mime);
         const nameStr = (mode === 'short')
@@ -48,10 +51,10 @@ export class Media extends HTMLParagraphElement {
         return `${nameStr} | ${mimeStr} | ${sizeStr}`;
     }
 
-    private _mode: options.InfoMediaMode;
+    private _mode: MediaMode;
     private _item: loaded.Item | undefined;
 
-    constructor (id: string, mode: options.InfoMediaMode, item?: loaded.Item) {
+    constructor (id: string, mode: MediaMode, item?: loaded.Item) {
         super();
 
         this.setAttribute('id', id);
@@ -69,7 +72,7 @@ export class Media extends HTMLParagraphElement {
     }
 
     get mode () { return this._mode }
-    set mode (mode: options.InfoMediaMode) {
+    set mode (mode: MediaMode) {
         this._mode = mode;
         this.refresh();
     }
@@ -93,7 +96,7 @@ export class Element extends HTMLElement {
     private message: Message;
     private media: Media;
 
-    constructor (id: string, opts: options.Info) {
+    constructor (id: string, opts: Options) {
         super();
 
         this.setAttribute('id', id);
@@ -115,7 +118,7 @@ export class Element extends HTMLElement {
     }
 
     get mediaMode () { return this.media.mode }
-    set mediaMode (mediaMode: options.InfoMediaMode) { this.media.mode = mediaMode }
+    set mediaMode (mediaMode: MediaMode) { this.media.mode = mediaMode }
 
     setEmpty = () => this.setMessage('');
 

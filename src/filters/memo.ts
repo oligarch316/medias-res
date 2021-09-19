@@ -3,17 +3,17 @@ import * as mime from '../data/mime';
 
 export const Exact = codec.type({
     type: codec.literal('exact'),
-    target: codec.types.NonEmptyString,
+    target: codec.nonEmptyString,
 }, 'FilterExact');
 
 export const Prefix = codec.type({
     type: codec.literal('prefix'),
-    prefix: codec.types.NonEmptyString,
+    prefix: codec.nonEmptyString,
 }, 'FilterPrefix');
 
 export const RegExp = codec.intersection([
     codec.type({ type: codec.literal('regexp') }),
-    codec.types.RegExp.memo,
+    codec.regExp.memo,
 ], 'FilterRegExp');
 
 export const MIMEType = codec.type({

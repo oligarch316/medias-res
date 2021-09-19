@@ -11,12 +11,12 @@ export const merge = (...filters: Filter[]) => base.merge(...filters);
 export const filterMIMEType = (type: mime.Type): Filter => item => item.mime.type != type;
 export const filterMIMESubtype = (subtype: mime.Subtype): Filter => item => item.mime.subtype != subtype;
 
-const MIMEType = codec.types.Memoized.fromEncode(
+const MIMEType = codec.memoized.fromEncode(
     memo.MIMEType,
     a => filterMIMEType(a.mimeType),
 );
 
-const MIMESubtype = codec.types.Memoized.fromEncode(
+const MIMESubtype = codec.memoized.fromEncode(
     memo.MIMESubtype,
     a => filterMIMESubtype(a.mimeSubtype),
 );
