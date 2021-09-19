@@ -7,14 +7,14 @@ const props = {
     newInstance: codec.boolean,
 };
 
-export const Complete = codec.type({
+export const Complete = codec.mergeable.type({
     classify: classify.Complete,
     pane: pane.Complete,
     log: log.Complete,
     ...props,
 });
 
-export const Incomplete = codec.partial({
+export const Incomplete = codec.mergeable.partial({
     classify: classify.Incomplete,
     pane: pane.Incomplete,
     log: log.Incomplete,

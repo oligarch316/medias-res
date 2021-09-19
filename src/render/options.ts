@@ -3,13 +3,13 @@ import * as parse from './parse/options';
 import * as load from './load/options';
 import * as pane from './pane/options';
 
-export const Complete = codec.type({
+export const Complete = codec.mergeable.type({
     parse: parse.Complete,
     load: load.Complete,
     pane: pane.Complete,
 });
 
-export const Incomplete = codec.partial({
+export const Incomplete = codec.mergeable.partial({
     parse: parse.Incomplete,
     load: load.Incomplete,
     pane: pane.Incomplete,

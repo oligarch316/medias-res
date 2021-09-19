@@ -9,7 +9,4 @@ export type Meta = Partial<{
     mode: Mode,
 }>;
 
-export function mergeTODO (base: Meta, ...list: Meta[]) {
-    // TODO
-    return base;
-}
+export const merge = (base: Meta, ...list: Meta[]) => Object.assign({}, base, ...list);

@@ -21,20 +21,20 @@ export function load (workingDirectory: string, args: string[]): LoadResult {
     const cliResult = cli.load(args);
     const configPath = defaults.configPath(cliResult.meta);
     const configResult = config.load(configPath);
-    const defaultsResult = defaults.load(meta.mergeTODO(
+    const defaultsResult = defaults.load(meta.merge(
         configResult.meta,
         cliResult.meta,
     ));
 
     return {
         args: cliResult.args,
-        ctx: context.mergeTODO(
+        ctx: context.merge(
             defaultsResult.ctx,
             configResult.ctx,
             cliResult.ctx,
             workingDirectoryCtx,
         ),
-        opts: options.mergeTODO(
+        opts: options.merge(
             defaultsResult.opts,
             configResult.opts,
             cliResult.opts,
