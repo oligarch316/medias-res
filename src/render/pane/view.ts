@@ -8,20 +8,23 @@ export function define () {
     Element.define();
 }
 
+export type Options = options.ViewComplete;
+export type ImageMode = options.ViewImageMode;
+
 export class Image extends HTMLImageElement {
     static readonly namespace = 'mr-view-image';
     static define (name = Image.namespace) {
         window.customElements.define(name, Image, { extends: 'img' });
     }
 
-    private static modeToStyle: { [K in options.ViewImageMode]: string } = {
+    private static modeToStyle: { [K in ImageMode]: string } = {
         fixed: 'height: 100%; width: 100%; object-fit: contain',
         panned: 'min-height: 100%; min-width: 100%; object-fit: contain',
     };
 
-    private _mode: options.ViewImageMode;
+    private _mode: ImageMode;
 
-    constructor (id: string, mode: options.ViewImageMode) {
+    constructor (id: string, mode: ImageMode) {
         super();
 
         this.setAttribute('id', id);
@@ -31,7 +34,7 @@ export class Image extends HTMLImageElement {
     }
 
     get mode () { return this._mode }
-    set mode (mode: options.ViewImageMode) {
+    set mode (mode: ImageMode) {
         this._mode = mode;
         this.setAttribute('style', Image.modeToStyle[mode]);
     }
@@ -66,7 +69,7 @@ export class Element extends HTMLElement {
 
     private _item: loaded.Item | undefined;
 
-    constructor (id: string, opts: options.View, item?: loaded.Item) {
+    constructor (id: string, opts: Options, item?: loaded.Item) {
         super();
 
         this.setAttribute('id', id);
@@ -97,7 +100,7 @@ export class Element extends HTMLElement {
     }
 
     get imageMode () { return this.image.mode }
-    set imageMode (imageMode: options.ViewImageMode) { this.image.mode = imageMode }
+    set imageMode (imageMode: ImageMode) { this.image.mode = imageMode }
 
     get item () { return this._item }
     set item (item: loaded.Item | undefined) {

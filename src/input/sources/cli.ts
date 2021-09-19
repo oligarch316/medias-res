@@ -8,21 +8,18 @@ import * as meta from '../meta';
 import * as either from 'fp-ts/Either';
 import { PathReporter } from 'io-ts/PathReporter'
 
-const modeFlag = codec.cli.singleArgFlag(meta.Mode.fromString);
-const filePathFlag = codec.cli.singleArgFlag(codec.types.FilePathFromString);
-
 const flagSet = {
-    '--config': filePathFlag,
-    '--log-level': codec.cli.singleArgFlag(log.Level.fromString),
-    '--log-format': codec.cli.singleArgFlag(log.Format.fromString),
-    '--log-output': codec.cli.singleArgFlag(log.Output.fromString),
-    '--mode': modeFlag,
-    '--new-window': codec.cli.booleanFlag,
-    '--recurse': codec.cli.booleanFlag,
+    '--config': codec.cli.flag.filePath,
+    '--log-level': codec.cli.flag.singleArg(log.Level.fromString),
+    '--log-format': codec.cli.flag.singleArg(log.Format.fromString),
+    '--log-output': codec.cli.flag.singleArg(log.Output.fromString),
+    '--mode': codec.cli.flag.singleArg(meta.Mode.fromString),
+    '--new-window': codec.cli.flag.boolean,
+    '--recurse': codec.cli.flag.boolean,
     // TODO: Filters
 };
 
-const Command = codec.cli.command(flagSet, 'medias-res');
+const Command = codec.cli.command.from(flagSet, 'medias-res');
 
 type Command = codec.TypeOf<typeof Command>;
 type Flags = Command['flags'];

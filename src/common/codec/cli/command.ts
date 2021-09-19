@@ -1,33 +1,17 @@
 import * as mergeable from '../mergeable';
 import * as t from 'io-ts';
 import * as either from 'fp-ts/Either';
-import * as flags from './flags';
+import * as flag from './flag';
 
-export type FlagSet = { [key: string]: flags.Flag<any> };
+export type FlagSet = { [key: string]: flag.C<any> };
 
 type FlagName<S extends FlagSet> = Extract<keyof S, string>;
 
-export class Command<S extends FlagSet> extends t.Type<
-    { args: string[], flags: { [ K in keyof S ]?: t.TypeOf<S[K]> } },
-    { args: string[], flags: { [ K in keyof S ]?: t.OutputOf<S[K]> } },
-    string[]
-> {
-    readonly _tag: 'CommandType' = 'CommandType';
-
-    constructor (
-        name: string,
-        is: Command<S>['is'],
-        validate: Command<S>['validate'],
-        encode: Command<S>['encode'],
-        readonly flagSet: S,
-    ) { super(name, is, validate, encode) }
-}
-
-type CommandInputItem<S extends FlagSet> =
+type InputItem<S extends FlagSet> =
     { isFlag: true, value: FlagName<S> } |
     { isFlag: false, value: string };
 
-class CommandInput<S extends FlagSet> implements flags.FlagInput {
+class Input<S extends FlagSet> implements flag.Input {
     private flagNames: string[];
     private idx: number;
 
@@ -51,7 +35,7 @@ class CommandInput<S extends FlagSet> implements flags.FlagInput {
         return item;
     }
 
-    next (): CommandInputItem<S> | undefined {
+    next (): InputItem<S> | undefined {
         const item = this.cur();
         if (item === undefined) return undefined;
         
@@ -62,10 +46,28 @@ class CommandInput<S extends FlagSet> implements flags.FlagInput {
     }
 }
 
-export function command<S extends FlagSet> (flagSet: S, name: string): Command<S> {
-    return new Command(
+export class Type<S extends FlagSet> extends t.Type<
+    { args: string[], flags: { [ K in keyof S ]?: t.TypeOf<S[K]> } },
+    { args: string[], flags: { [ K in keyof S ]?: t.OutputOf<S[K]> } },
+    string[]
+> {
+    readonly _tag: 'CommandType' = 'CommandType';
+
+    constructor (
+        name: string,
+        is: Type<S>['is'],
+        validate: Type<S>['validate'],
+        encode: Type<S>['encode'],
+        readonly flagSet: S,
+    ) { super(name, is, validate, encode) }
+}
+
+export interface C<S extends FlagSet> extends Type<S> {};
+
+export function from<S extends FlagSet> (flagSet: S, name: string): Type<S> {
+    return new Type(
         `Command<${name}>`,
-        (u: unknown): u is t.TypeOf<Command<S>> => {
+        (u: unknown): u is t.TypeOf<Type<S>> => {
             if (!t.UnknownRecord.is(u)) return false;
             for (const [key, val] of Object.entries(u)) {
                 const flagCodec = flagSet[key];
@@ -74,8 +76,8 @@ export function command<S extends FlagSet> (flagSet: S, name: string): Command<S
             return true;
         },
         (i, c) => {
-            const cmdInput = new CommandInput(flagSet, i);
-            const res: t.TypeOf<Command<S>> = { args: [], flags: {} };
+            const cmdInput = new Input(flagSet, i);
+            const res: t.TypeOf<Type<S>> = { args: [], flags: {} };
 
             for (let item = cmdInput.next(); item !== undefined; item = cmdInput.next()) {
                 if (!item.isFlag) {
@@ -99,7 +101,7 @@ export function command<S extends FlagSet> (flagSet: S, name: string): Command<S
             return t.success(res);
         },
         a => {
-            const res: t.OutputOf<Command<S>> = { args: a.args, flags: {} };
+            const res: t.OutputOf<Type<S>> = { args: a.args, flags: {} };
             for (const [key, val] of Object.entries(a.flags)) {
                 res.flags[key as keyof S] = flagSet[key].encode(val);
             }

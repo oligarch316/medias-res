@@ -1,2 +1,2 @@
-export * from './command';
-export * from './flags';
+export * as command from './command';
+export * as flag from './flag';

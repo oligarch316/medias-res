@@ -7,7 +7,7 @@ export const levels = [
     'debug',
 ] as const;
 
-export const Level = codec.types.LiteralUnion.from(levels, 'LogLevel');
+export const Level = codec.literalUnion(levels, 'LogLevel');
 export type Level = codec.TypeOf<typeof Level>;
 
 export type Logger =

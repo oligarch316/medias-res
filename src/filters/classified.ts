@@ -28,7 +28,7 @@ const Prefix = codec.memoized.fromEncode(
 const RegExp = codec.memoized.fromValidate(
     memo.RegExp,
     (i, c) => pipe(
-        codec.types.RegExp.validateMemo(i, c),
+        codec.regExp.validateMemo(i, c),
         chain(r => codec.success(filterRegExp(r))),
     ),
 );

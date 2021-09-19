@@ -15,31 +15,22 @@ export class Type<A extends object, M, O, I> extends t.Type<A & Memo<M>, O, I> {
 
     constructor (
         name: string,
-        is: Type<A, M, O, I>['is'],
-        validate: Type<A, M, O, I>['validate'],
-        encode: Type<A, M, O, I>['encode'],
         readonly memo: t.Type<M, O, I>,
         readonly validateMemo: t.Validate<M, A>,
-    ) { super(name, is, validate, encode) }
-
-    static from = <A extends object, M, O, I>(
-        memo: t.Type<M, O, I>,
-        validateMemo: t.Validate<M, A>,
-        name = `Memoized<${memo.name}>`,
-    ) => new Type<A, M, O, I>(
-        name,
-        (u: unknown): u is A & Memo<M> => isMemoized(u) && memo.is(u[sym]),
-        (i, c) => pipe(
-            memo.validate(i, c),
-            chain(m => pipe(
-                validateMemo(m, c),
-                chain(a => t.success(Object.assign(a, { [sym]: m }))),
-            )),
-        ),
-        a => memo.encode(a[sym]),
-        memo,
-        validateMemo,
-    );
+    ) {
+        super(
+            name,
+            (u: unknown): u is A & Memo<M> => isMemoized(u) && memo.is(u[sym]),
+            (i, c) => pipe(
+                memo.validate(i, c),
+                chain(m => pipe(
+                    validateMemo(m, c),
+                    chain(a => t.success(Object.assign(a, { [sym]: m }))),
+                )),
+            ),
+            a => memo.encode(a[sym]),
+        );
+    }
 }
 
 export interface C<A extends object, M, O, I> extends Type<A, M, O, I> {};
@@ -49,8 +40,8 @@ export const isMemoizedC = (codec: t.Any): codec is C<object, any, any, any> => 
 export const fromValidate = <A extends object, C extends t.Any>(
     memo: C,
     validate: t.Validate<t.TypeOf<C>, A>,
-    name?: string,
-) => Type.from<A, t.TypeOf<C>, t.OutputOf<C>, t.InputOf<C>>(memo, validate, name);
+    name = `Memoized<${memo.name}>`,
+) => new Type<A, t.TypeOf<C>, t.OutputOf<C>, t.InputOf<C>>(name, memo, validate);
 
 export const fromEncode = <A extends object, C extends t.Any> (
     memo: C,

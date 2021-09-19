@@ -6,7 +6,7 @@ export const types = [
     'video',
 ] as const;
 
-export const Type = codec.types.LiteralUnion.from(types, 'MIMEType');
+export const Type = codec.literalUnion(types, 'MIMEType');
 export type Type = codec.TypeOf<typeof Type>;
 
 export const imageSubtypes = [
@@ -21,7 +21,7 @@ export const imageSubtypes = [
     'x-icon',
 ] as const;
 
-export const ImageSubtype = codec.types.LiteralUnion.from(imageSubtypes, 'MIMEImageSubtype');
+export const ImageSubtype = codec.literalUnion(imageSubtypes, 'MIMEImageSubtype');
 export type ImageSubtype = codec.TypeOf<typeof ImageSubtype>;
 
 export const videoSubtypes = [
@@ -30,7 +30,7 @@ export const videoSubtypes = [
     // TODO: Check for more
 ] as const;
 
-export const VideoSubtype = codec.types.LiteralUnion.from(videoSubtypes, 'MIMEVideoSubtype');
+export const VideoSubtype = codec.literalUnion(videoSubtypes, 'MIMEVideoSubtype');
 export type VideoSubtype = codec.TypeOf<typeof VideoSubtype>;
 
 export const subtypes = [
@@ -38,7 +38,7 @@ export const subtypes = [
     ...videoSubtypes,
 ] as const;
 
-export const Subtype = codec.types.LiteralUnion.from(subtypes, 'MIMESubtype');
+export const Subtype = codec.literalUnion(subtypes, 'MIMESubtype');
 export type Subtype = codec.TypeOf<typeof Subtype>;
 
 export type Image = { type: 'image'; subtype: ImageSubtype };
