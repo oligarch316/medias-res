@@ -26,9 +26,11 @@ export const isMergeableC = <A, O, I> (codec: t.Type<A, O, I>): codec is C<A, O,
 
 type MergeOfProps<P extends t.AnyProps> = { [K in keyof P]: Function<t.TypeOf<P[K]>> }
 
-function propsMergeFuncs<P extends t.AnyProps> (props: P, defaultF: Function<t.TypeOf<P[string]>>): MergeOfProps<P> {
+const mergeReplace = <T>(_: T, b: T) => b;
+
+function propsMergeFuncs<P extends t.AnyProps> (props: P): MergeOfProps<P> {
     return Object.entries(props).reduce((acc, [key, val]) => {
-        acc[key] = isMergeableC(val) ? val.merge : defaultF;
+        acc[key] = isMergeableC(val) ? val.merge : mergeReplace;
         return acc;
     }, {} as any);
 }
@@ -43,12 +45,15 @@ export const array = <C extends t.Mixed>(item: C, name?: string) => Type.from(
 
 export const partial = <P extends t.Props>(props: P, name?: string) => {
     const propKeys: (keyof P)[] = Object.keys(props);
-    const mergeFuncs = propsMergeFuncs(props, (a, b) => (b === undefined) ? a : b);
+    const mergeFuncs = propsMergeFuncs(props);
 
     return Type.from(
         t.partial(props, name),
         (a, b) => propKeys.reduce((acc, cur) => {
-            acc[cur] = mergeFuncs[cur](a[cur], b[cur]);
+            acc[cur] =
+                (b[cur] === undefined) ? a[cur] :
+                (a[cur] === undefined) ? b[cur] :
+                mergeFuncs[cur](a[cur], b[cur]);
             return acc;
         }, {} as t.TypeOfPartialProps<P>),
     );
@@ -56,7 +61,7 @@ export const partial = <P extends t.Props>(props: P, name?: string) => {
 
 export const type = <P extends t.Props>(props: P, name?: string) => {
     const propKeys: (keyof P)[] = Object.keys(props);
-    const mergeFuncs = propsMergeFuncs(props, (_, b) => b);
+    const mergeFuncs = propsMergeFuncs(props);
 
     return Type.from(
         t.type(props, name),
