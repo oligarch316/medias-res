@@ -120,13 +120,18 @@ describe('complex nested', () => {
         const mArray = mergeable.array(t.string);
     
         const TestCodec = mergeable.type({
-            keyOne: mergeable.partial({ a: t.boolean, b: t.boolean, c: mArray }),
-            keyTwo: mergeable.type({ d: t.boolean, e: t.boolean, f: mArray }),
-            keyThree: mergeable.union([
+            keyOne: mergeable.partial({
+                outer: mergeable.partial({
+                    inner: t.boolean,
+                }),
+            }),
+            keyTwo: mergeable.partial({ a: t.boolean, b: t.boolean, c: mArray }),
+            keyThree: mergeable.type({ d: t.boolean, e: t.boolean, f: mArray }),
+            keyFour: mergeable.union([
                 mergeable.type({ yi: mArray, er: mArray }),
                 mergeable.type({ san: mArray, si: mArray }),
             ]),
-            keyFour: mergeable.union([
+            keyFive: mergeable.union([
                 mergeable.type({ liu: mArray, qi: mArray }),
                 mergeable.type({ ba: mArray, jiu: mArray }),
             ]),
@@ -134,24 +139,27 @@ describe('complex nested', () => {
         });
     
         const a: t.TypeOf<typeof TestCodec> = {
-            keyOne: { a: true, b: true, c: [ 'elem1' ] },
-            keyTwo: { d: true, e: true, f: [ 'elem1' ] },
-            keyThree: { yi: [ 'elem1' ], er: [ 'elem1' ] },
-            keyFour: { liu: [ 'elem1' ], qi: [ 'elem1' ] },
+            keyOne: { outer: { inner: true } },
+            keyTwo: { a: true, b: true, c: [ 'elem1' ] },
+            keyThree: { d: true, e: true, f: [ 'elem1' ] },
+            keyFour: { yi: [ 'elem1' ], er: [ 'elem1' ] },
+            keyFive: { liu: [ 'elem1' ], qi: [ 'elem1' ] },
         };
     
         const b: t.TypeOf<typeof TestCodec> = {
-            keyOne: { a: false, b: false, c: [ 'elem2' ] },
-            keyTwo: { d: false, e: false, f: [ 'elem2' ] },
-            keyThree: { san: [ 'elem2' ], si: [ 'elem2' ] },
-            keyFour: { liu: [ 'elem2' ], qi: [ 'elem2' ] },
+            keyOne: { },
+            keyTwo: { a: false, b: false, c: [ 'elem2' ] },
+            keyThree: { d: false, e: false, f: [ 'elem2' ] },
+            keyFour: { san: [ 'elem2' ], si: [ 'elem2' ] },
+            keyFive: { liu: [ 'elem2' ], qi: [ 'elem2' ] },
         };
     
         expect(TestCodec.merge(a, b)).toEqual({
-            keyOne: { a: false, b: false, c: [ 'elem1', 'elem2' ] },
-            keyTwo: { d: false, e: false, f: [ 'elem1', 'elem2' ] },
-            keyThree: { san: [ 'elem2' ], si: [ 'elem2' ] },
-            keyFour: { liu: [ 'elem1', 'elem2' ], qi: [ 'elem1', 'elem2' ] },
+            keyOne: { outer: { inner: true } },
+            keyTwo: { a: false, b: false, c: [ 'elem1', 'elem2' ] },
+            keyThree: { d: false, e: false, f: [ 'elem1', 'elem2' ] },
+            keyFour: { san: [ 'elem2' ], si: [ 'elem2' ] },
+            keyFive: { liu: [ 'elem1', 'elem2' ], qi: [ 'elem1', 'elem2' ] },
         });
     });
 });
