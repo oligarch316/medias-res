@@ -1,11 +1,11 @@
 import * as codec from '../common/codec';
 import * as classify from './classify/context';
 
-export const Complete = codec.type({
+export const Complete = codec.mergeable.type({
     classify: classify.Complete,
 });
 
-export const Incomplete = codec.partial({
+export const Incomplete = codec.mergeable.partial({
     classify: classify.Incomplete,
 });
 
