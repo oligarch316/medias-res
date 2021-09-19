@@ -1,4 +1,5 @@
 export * from 'io-ts';
 export * as types from './types';
 export * as cli from './cli';
+export * as memoized from './memoized';
 export * as mergeable from './mergeable';

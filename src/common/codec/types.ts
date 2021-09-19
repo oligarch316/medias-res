@@ -5,6 +5,7 @@ import { pipe } from 'fp-ts/function';
 import { chain } from 'fp-ts/Either';
 
 import { Stats, statSync } from 'fs';
+import * as memoized from './memoized';
 
 // ----- Literal Union
 export class LiteralUnion<T extends readonly string[]> extends t.Type<T[number]> {
@@ -46,83 +47,6 @@ export class LiteralUnion<T extends readonly string[]> extends t.Type<T[number]>
             ),
             t.identity,
         );
-    }
-}
-
-// ----- Memoized
-const memoSym: unique symbol = Symbol('memo');
-type Memo<T> = { [memoSym]: T };
-
-// TODO: Have a readonly 'fromMemo' on here as a Type<A & Memo<M>, Memo<M>, Memo<M>>
-// similar to the 'fromString' idea on the LiteralUnion
-export class Memoized<A extends object, M, O, I> extends t.Type<A & Memo<M>, O, I> {
-    readonly _tag: 'MemoizedType' = 'MemoizedType';
-
-    static hasMemo = <T>(u: unknown): u is Memo<T> =>
-        (typeof u === 'object' || typeof u === 'function') &&
-        u !== null &&
-        u[memoSym] != undefined;
-
-    private constructor (
-        readonly memo: t.Type<M, O, I>,
-        readonly validateMemo: t.Validate<M, A>,
-        name = `Memoized<${memo.name}>`,
-    ){
-        super(
-            name,
-            (u: unknown): u is A & Memo<M> => Memoized.hasMemo(u) && memo.is(u[memoSym]),
-            (i, c) => {
-                const eitherMemo = memo.validate(i, c);
-                if (either.isLeft(eitherMemo)) return eitherMemo;
-
-                const eitherA = validateMemo(eitherMemo.right, c);
-                if (either.isLeft(eitherA)) return eitherA;
-
-                const res = Object.assign(eitherA.right, { [memoSym]: eitherMemo.right });
-                return t.success(res);
-            },
-            a => memo.encode(a[memoSym]),
-        );
-    }
-
-    withMemo = <N extends M, O, I> (
-        codec: t.Type<N, O, I>,
-        name?: string,
-    ) => new Memoized<A, N, O, I>(codec, this.validateMemo, name);
-
-    static fromValidate = <A extends object, C extends t.Any> (
-        codec: C,
-        validate: t.Validate<t.TypeOf<C>, A>,
-        name?: string,
-    ) => new Memoized<A, t.TypeOf<C>, t.OutputOf<C>, t.InputOf<C>>(codec, validate, name);
-
-    static fromEncode = <A extends object, C extends t.Any> (
-        codec: C,
-        encode: t.Encode<t.TypeOf<C>, A>,
-        name?: string,
-    ) => Memoized.fromValidate<A, C>(codec, i => t.success(encode(i)), name);
-
-    static fromDecoder = <A extends object, C extends t.Any> (
-        codec: C,
-        decoder: t.Decoder<t.TypeOf<C>, A>,
-        name?: string,
-    ) => Memoized.fromValidate<A, C>(codec, decoder.validate, name);
-
-    static fromEncoder = <A extends object, C extends t.Any> (
-        codec: C,
-        encoder: t.Encoder<t.TypeOf<C>, A>,
-        name?: string,
-    ) => Memoized.fromEncode<A, C>(codec, encoder.encode, name);
-
-    static fromCodecOutput = <C extends t.Type<any, object, any>> (
-        codec: C,
-        name?: string,
-    ) => {
-        const newCodec = new t.Type<t.TypeOf<C>, t.TypeOf<C>, t.InputOf<C>>(
-            codec.name, codec.is, codec.validate, t.identity
-        );
-        
-        return Memoized.fromEncode<t.OutputOf<C>, typeof newCodec>(newCodec, codec.encode, name);
     }
 }
 
@@ -182,7 +106,7 @@ export type FilePath = t.TypeOf<typeof FilePath>;
 export type DirectoryPath = t.TypeOf<typeof DirectoryPath>;
 
 // ----- RegExp
-const _RegExp = Memoized.fromValidate(
+const _RegExp = memoized.fromValidate(
     t.intersection([
         t.type({ pattern: types.NonEmptyString }),
         t.partial({ flags: types.NonEmptyString }),
