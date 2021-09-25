@@ -5,7 +5,7 @@ import type * as context from './context';
 
 import * as pre from '../../common/preiterable/async';
 import * as parsed from '../../data/parsed';
-import * as filters from '../../filters/parsed';
+import * as filter from './filter';
 
 export type Options = options.Complete;
 export type Context = context.Complete;
@@ -45,7 +45,7 @@ export class Parser implements handler.Handler<classified.Protocol> {
     }
 
     parse (input: classified.Iterable, ctx: Context): parsed.Iterable {
-        const filterFunc = filters.merge(...ctx.filters);
+        const filterFunc = filter.merge(...ctx.filters);
         
         const recursable = this.collate(input);
         const iterable = this.flatten(recursable, ctx);

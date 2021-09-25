@@ -6,7 +6,7 @@ import type * as context from './context';
 import * as pre from '../../common/preiterable/async';
 import * as sizeable from '../../common/sizeable';
 import * as mime from '../../data/mime';
-import * as filters from '../../filters/loaded';
+import * as filter from './filter';
 
 export type Options = options.Complete;
 export type Context = context.Complete;
@@ -28,7 +28,7 @@ export class Loader {
     });
 
     load (input: parsed.Iterable, ctx: Context): loaded.Iterable {
-        const filterFunc = filters.merge(...ctx.filters);
+        const filterFunc = filter.merge(...ctx.filters);
         const iterable = new pre.TransformedIterable(input, item => this.handle(item));
         return pre.FilteredIterable.from(iterable, filterFunc);
     }

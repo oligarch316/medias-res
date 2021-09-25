@@ -1,7 +1,6 @@
-import * as mergeable from '../mergeable';
-import * as t from 'io-ts';
-import * as either from 'fp-ts/Either';
+import * as codec from '../codec';
 import * as flag from './flag';
+import * as either from 'fp-ts/Either';
 
 export type FlagSet = { [key: string]: flag.C<any> };
 
@@ -46,9 +45,9 @@ class Input<S extends FlagSet> implements flag.Input {
     }
 }
 
-export class Type<S extends FlagSet> extends t.Type<
-    { args: string[], flags: { [ K in keyof S ]?: t.TypeOf<S[K]> } },
-    { args: string[], flags: { [ K in keyof S ]?: t.OutputOf<S[K]> } },
+export class Type<S extends FlagSet> extends codec.Type<
+    { args: string[], flags: { [ K in keyof S ]?: codec.TypeOf<S[K]> } },
+    { args: string[], flags: { [ K in keyof S ]?: codec.OutputOf<S[K]> } },
     string[]
 > {
     readonly _tag: 'CommandType' = 'CommandType';
@@ -67,8 +66,8 @@ export interface C<S extends FlagSet> extends Type<S> {};
 export function from<S extends FlagSet> (flagSet: S, name: string): Type<S> {
     return new Type(
         `Command<${name}>`,
-        (u: unknown): u is t.TypeOf<Type<S>> => {
-            if (!t.UnknownRecord.is(u)) return false;
+        (u: unknown): u is codec.TypeOf<Type<S>> => {
+            if (!codec.UnknownRecord.is(u)) return false;
             for (const [key, val] of Object.entries(u)) {
                 const flagCodec = flagSet[key];
                 if (flagCodec === undefined || !flagCodec.is(val)) return false;
@@ -77,7 +76,7 @@ export function from<S extends FlagSet> (flagSet: S, name: string): Type<S> {
         },
         (i, c) => {
             const cmdInput = new Input(flagSet, i);
-            const res: t.TypeOf<Type<S>> = { args: [], flags: {} };
+            const res: codec.TypeOf<Type<S>> = { args: [], flags: {} };
 
             for (let item = cmdInput.next(); item !== undefined; item = cmdInput.next()) {
                 if (!item.isFlag) {
@@ -91,17 +90,17 @@ export function from<S extends FlagSet> (flagSet: S, name: string): Type<S> {
                 if (either.isLeft(eitherVal)) return eitherVal; // TODO: Better error info
 
                 const existingVal = res.flags[item.value];
-                const shouldMerge = existingVal !== undefined && mergeable.isMergeableC(flagCodec);
+                const shouldMerge = existingVal !== undefined && codec.mergeable.isMergeableC(flagCodec);
 
                 res.flags[item.value] = (shouldMerge)
                     ? flagCodec.merge(existingVal, eitherVal.right)
                     : eitherVal.right;
             }
 
-            return t.success(res);
+            return codec.success(res);
         },
         a => {
-            const res: t.OutputOf<Type<S>> = { args: a.args, flags: {} };
+            const res: codec.OutputOf<Type<S>> = { args: a.args, flags: {} };
             for (const [key, val] of Object.entries(a.flags)) {
                 res.flags[key as keyof S] = flagSet[key].encode(val);
             }

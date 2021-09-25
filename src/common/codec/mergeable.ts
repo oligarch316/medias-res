@@ -2,6 +2,8 @@ import * as t from 'io-ts';
 
 export type Function<T> = (a: T, b: T) => T;
 
+export const reversePriority = <T>(f: Function<T>): Function<T> => (a, b) => f(b, a);
+
 export class Type<A, O, I> extends t.Type<A, O, I> {
     readonly _tag: 'MergeableType' = 'MergeableType';
 

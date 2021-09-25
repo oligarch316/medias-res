@@ -1,12 +1,10 @@
-import * as memoized from './memoized';
-import * as types from './types';
-import * as t from 'io-ts';
+import * as codec from './codec';
 import * as either from 'fp-ts/Either';
 import { PathReporter } from 'io-ts/PathReporter';
 
 describe('math function', () => {
-    const MathSymbol = types.LiteralUnion.from([ '+', '-', '/', '*' ] as const);
-    type MathSymbol = t.TypeOf<typeof MathSymbol>;
+    const MathSymbol = codec.literalUnion([ '+', '-', '/', '*' ] as const);
+    type MathSymbol = codec.TypeOf<typeof MathSymbol>;
 
     const mathFuncs: { [K in MathSymbol]: (x: number, y: number) => number } = {
         '+': (x, y) => x + y,
@@ -15,7 +13,7 @@ describe('math function', () => {
         '*': (x, y) => x * y,
     };
 
-    const MathFunctionCodec = memoized.fromEncode(MathSymbol, (s => mathFuncs[s]));
+    const MathFunctionCodec = codec.memoized.Type.fromEncode(MathSymbol, s => mathFuncs[s]);
 
     test('addition', () => {
         const result = MathFunctionCodec.decode('+');
