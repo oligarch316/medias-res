@@ -1,8 +1,8 @@
 import * as codec from '../../common/codec';
-import * as filters from '../../filters/loaded';
+import * as filter from './filter';
 
 const props = {
-    filters: codec.mergeable.array(filters.Options), // TODO: Make more "set-like"
+    filters: codec.mergeable.array(filter.Type),
 };
 
 export const Complete = codec.mergeable.type(props);

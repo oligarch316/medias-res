@@ -4,7 +4,7 @@ import type * as options from './options';
 import type * as context from './context';
 
 import * as pre from '../../common/preiterable/async';
-import * as filters from '../../filters/classified';
+import * as filter from './filter';
 
 export type Options = options.Complete;
 export type Context = context.Complete;
@@ -72,7 +72,7 @@ export class Classifier implements handler.Handler {
 
     classify (input: Iterable<string> | AsyncIterable<string>, ctx: Context): classified.Iterable {
         const handlerCtx = this.buildHandlerContext(ctx);
-        const filterFunc = filters.merge(...ctx.filters);
+        const filterFunc = filter.merge(...ctx.filters);
         
         const recursable = this.collate(input, handlerCtx);
         const iterable = pre.HeteroStack.flatten(recursable, this.stackLoader);

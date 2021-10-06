@@ -4,6 +4,8 @@ import * as cli from './cli';
 
 import { PathReporter } from 'io-ts/PathReporter'
 
+// TODO: Replace all of this
+
 const testFlags = {
     '--testBoolOne': cli.flag.boolean,
     '--testBoolTwo': cli.flag.boolean,
@@ -42,14 +44,6 @@ describe('decode', () => {
                 '--testBoolOne': true,
                 '--testBoolTwo': false,
             },
-        },
-    ));
-
-    test('number failure', () => decode(
-        [ '--testNumberOne', 'eleven' ],
-        {
-            args: [],
-            flags: {},
         },
     ));
 });

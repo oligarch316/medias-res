@@ -1,73 +1,68 @@
 import type * as context from '../context';
 import type * as options from '../options';
 
-import * as codec from '../../common/codec';
-import * as filters from '../../filters';
+import * as codec from '../codec';
 import * as log from '../../main/log/options';
 import * as meta from '../meta';
 
-import * as either from 'fp-ts/Either';
+import { either } from 'fp-ts';
 import { PathReporter } from 'io-ts/PathReporter'
 import { readFileSync } from 'fs';
 
+const cacheSizeConfig = codec.memoized.mergedFrom(
+    codec.cachesize.primitive,
+    codec.cachesize.compound,
+    'priorityBase',
+    'CacheSizeConfig',
+);
+
+const displayConfig = codec.partial({
+    height: codec.number,
+    width: codec.number,
+}, 'DisplayConfig');
+
+const filtersConfig = codec.memoized.mergedFrom(
+    codec.filter.primitive,
+    codec.filter.compound,
+    'priorityBase',
+    'FilterConfig',
+);
+
 const Config = codec.partial({
-    cacheSize: codec.partial({
-        classify: codec.number,
-        load: codec.number,
-        parse: codec.number,
-    }),
-    display: codec.partial({
-        height: codec.number,
-        width: codec.number,
-    }),
-    filters: codec.array(filters.Options), // TODO: Make "set-like"
-    log: log.Incomplete,
+    // Meta
     mode: meta.Mode,
+
+    // Context
+    filters: filtersConfig,
     recurse: codec.boolean,
-});
+
+    // Options
+    cacheSize: cacheSizeConfig,
+    display: displayConfig,
+    log: log.Incomplete,
+}, 'Config');
 
 type Config = codec.TypeOf<typeof Config>;
-
-function encodeFilters (fs: Config['filters']) {
-    const res: {
-        classified: filters.classified.Options[],
-        loaded: filters.loaded.Options[],
-        parsed: filters.parsed.Options[],
-    } = { classified: [], parsed: [], loaded: [] };
-
-    if (fs === undefined) return res;
-
-    function tryDecode<C extends codec.Any> (u: unknown, c: C, list: codec.TypeOf<C>[]) {
-        const res = c.decode(u);
-        if (either.isRight(res)) list.push(res.right);
-    }
-
-    for (const f of fs) {
-        tryDecode(f, filters.classified.Options, res.classified);
-        tryDecode(f, filters.loaded.Options, res.loaded);
-        tryDecode(f, filters.parsed.Options, res.parsed);
-    }
-
-    return res;
-}
 
 function encodeMeta (config: Config): meta.Meta {
     return { mode: config.mode };
 }
 
 function encodeContext (config: Config): context.Incomplete {
-    const filterSet = encodeFilters(config.filters);
-
     return {
         main: {
-            classify: { filters: filterSet.classified },
+            classify: {
+                filters: config.filters?.classify,
+            }
         },
         render: {
             parse: {
-                filters: filterSet.parsed,
+                filters: config.filters?.parse,
                 recurse: config.recurse,
             },
-            load: { filters: filterSet.loaded },
+            load: {
+                filters: config.filters?.load,
+            },
         },
     };
 }

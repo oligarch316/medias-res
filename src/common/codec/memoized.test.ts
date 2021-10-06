@@ -1,12 +1,9 @@
-import * as memoized from './memoized';
-import * as types from './types';
-import * as t from 'io-ts';
-import * as either from 'fp-ts/Either';
-import { PathReporter } from 'io-ts/PathReporter';
+import * as codec from './codec';
+import { codec as codectest } from './testutil';
 
 describe('math function', () => {
-    const MathSymbol = types.LiteralUnion.from([ '+', '-', '/', '*' ] as const);
-    type MathSymbol = t.TypeOf<typeof MathSymbol>;
+    const MathSymbol = codec.literalUnion([ '+', '-', '/', '*' ] as const);
+    type MathSymbol = codec.TypeOf<typeof MathSymbol>;
 
     const mathFuncs: { [K in MathSymbol]: (x: number, y: number) => number } = {
         '+': (x, y) => x + y,
@@ -15,50 +12,39 @@ describe('math function', () => {
         '*': (x, y) => x * y,
     };
 
-    const MathFunctionCodec = memoized.fromEncode(MathSymbol, (s => mathFuncs[s]));
+    const MathFunctionCodec = codec.memoized.Type.fromEncode(MathSymbol, s => mathFuncs[s]);
 
     test('addition', () => {
-        const result = MathFunctionCodec.decode('+');
-        if (either.isLeft(result)) fail(PathReporter.report(result).join(' | '));
+        const result = codectest.assumeDecodeSuccess(MathFunctionCodec, '+');
 
-        const f = result.right;
-
-        expect(f(10, 2)).toEqual(12);
-        expect(MathFunctionCodec.encode(f)).toEqual('+');
+        expect(result(10, 2)).toEqual(12);
+        expect(MathFunctionCodec.encode(result)).toEqual('+');
     });
 
     test('subtraction', () => {
-        const result = MathFunctionCodec.decode('-');
-        if (either.isLeft(result)) fail(PathReporter.report(result).join(' | '));
+        const result = codectest.assumeDecodeSuccess(MathFunctionCodec, '-');
 
-        const f = result.right;
-
-        expect(f(10, 2)).toEqual(8);
-        expect(MathFunctionCodec.encode(f)).toEqual('-');
+        expect(result(10, 2)).toEqual(8);
+        expect(MathFunctionCodec.encode(result)).toEqual('-');
     });
 
     test('division', () => {
-        const result = MathFunctionCodec.decode('/');
-        if (either.isLeft(result)) fail(PathReporter.report(result).join(' | '));
+        const result = codectest.assumeDecodeSuccess(MathFunctionCodec, '/');
 
-        const f = result.right;
-
-        expect(f(10, 2)).toEqual(5);
-        expect(MathFunctionCodec.encode(f)).toEqual('/');
+        expect(result(10, 2)).toEqual(5);
+        expect(MathFunctionCodec.encode(result)).toEqual('/');
     });
 
     test('multiplication', () => {
-        const result = MathFunctionCodec.decode('*');
-        if (either.isLeft(result)) fail(PathReporter.report(result).join(' | '));
+        const result = codectest.assumeDecodeSuccess(MathFunctionCodec, '*');
 
-        const f = result.right;
-
-        expect(f(10, 2)).toEqual(20);
-        expect(MathFunctionCodec.encode(f)).toEqual('*');
+        expect(result(10, 2)).toEqual(20);
+        expect(MathFunctionCodec.encode(result)).toEqual('*');
     });
 
     test('invalid', () => {
-        const result = MathFunctionCodec.decode('~');
-        expect(either.isLeft(result)).toBe(true);
+        codectest.assumeDecodeFailure(MathFunctionCodec, '~');
+
+        // TODO: Check error value / message
     });
 });

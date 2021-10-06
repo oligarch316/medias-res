@@ -1,9 +1,9 @@
 import * as codec from '../../common/codec';
-import * as filters from '../../filters/classified';
+import * as filter from './filter';
 
 const props = {
     workingDirectory: codec.string,
-    filters: codec.mergeable.array(filters.Options),
+    filters: codec.mergeable.array(filter.Type),
 };
 
 export const Complete = codec.mergeable.type(props);
