@@ -112,4 +112,3 @@ export const compound = codec.memoized.Type.fromEncode(
 );
 
 export type Compound = codec.TypeOf<typeof compound>;
-

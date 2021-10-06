@@ -90,9 +90,17 @@ export function from<S extends FlagSet> (flagSet: S, name: string): Type<S> {
                 if (either.isLeft(eitherVal)) return eitherVal; // TODO: Better error info
 
                 const existingVal = res.flags[item.value];
-                const shouldMerge = existingVal !== undefined && codec.mergeable.isMergeableC(flagCodec);
 
-                res.flags[item.value] = (shouldMerge)
+                // TODO: For some reason esbuild compilation (and whatever my IDE does) is perfectly
+                // happy with const shouldMerge = ... followed by the conditional, but ts-jest throws
+                // a fit. Seems like the former considers shouldMerge a <boolean & predicate> while the
+                // latter just thinks its a boolean (and then doesn't consider flagCodec a
+                // mergeable.C in the true case)
+
+                // const shouldMerge = existingVal !== undefined && codec.mergeable.isMergeableC(flagCodec);
+                // res.flags[item.value] = (shouldMerge)
+
+                res.flags[item.value] = existingVal !== undefined && codec.mergeable.isMergeableC(flagCodec)
                     ? flagCodec.merge(existingVal, eitherVal.right)
                     : eitherVal.right;
             }

@@ -1,6 +1,5 @@
 import * as codec from './codec';
-import * as either from 'fp-ts/Either';
-import { PathReporter } from 'io-ts/PathReporter';
+import { codec as codectest } from './testutil';
 
 describe('math function', () => {
     const MathSymbol = codec.literalUnion([ '+', '-', '/', '*' ] as const);
@@ -16,47 +15,36 @@ describe('math function', () => {
     const MathFunctionCodec = codec.memoized.Type.fromEncode(MathSymbol, s => mathFuncs[s]);
 
     test('addition', () => {
-        const result = MathFunctionCodec.decode('+');
-        if (either.isLeft(result)) fail(PathReporter.report(result).join(' | '));
+        const result = codectest.assumeDecodeSuccess(MathFunctionCodec, '+');
 
-        const f = result.right;
-
-        expect(f(10, 2)).toEqual(12);
-        expect(MathFunctionCodec.encode(f)).toEqual('+');
+        expect(result(10, 2)).toEqual(12);
+        expect(MathFunctionCodec.encode(result)).toEqual('+');
     });
 
     test('subtraction', () => {
-        const result = MathFunctionCodec.decode('-');
-        if (either.isLeft(result)) fail(PathReporter.report(result).join(' | '));
+        const result = codectest.assumeDecodeSuccess(MathFunctionCodec, '-');
 
-        const f = result.right;
-
-        expect(f(10, 2)).toEqual(8);
-        expect(MathFunctionCodec.encode(f)).toEqual('-');
+        expect(result(10, 2)).toEqual(8);
+        expect(MathFunctionCodec.encode(result)).toEqual('-');
     });
 
     test('division', () => {
-        const result = MathFunctionCodec.decode('/');
-        if (either.isLeft(result)) fail(PathReporter.report(result).join(' | '));
+        const result = codectest.assumeDecodeSuccess(MathFunctionCodec, '/');
 
-        const f = result.right;
-
-        expect(f(10, 2)).toEqual(5);
-        expect(MathFunctionCodec.encode(f)).toEqual('/');
+        expect(result(10, 2)).toEqual(5);
+        expect(MathFunctionCodec.encode(result)).toEqual('/');
     });
 
     test('multiplication', () => {
-        const result = MathFunctionCodec.decode('*');
-        if (either.isLeft(result)) fail(PathReporter.report(result).join(' | '));
+        const result = codectest.assumeDecodeSuccess(MathFunctionCodec, '*');
 
-        const f = result.right;
-
-        expect(f(10, 2)).toEqual(20);
-        expect(MathFunctionCodec.encode(f)).toEqual('*');
+        expect(result(10, 2)).toEqual(20);
+        expect(MathFunctionCodec.encode(result)).toEqual('*');
     });
 
     test('invalid', () => {
-        const result = MathFunctionCodec.decode('~');
-        expect(either.isLeft(result)).toBe(true);
+        codectest.assumeDecodeFailure(MathFunctionCodec, '~');
+
+        // TODO: Check error value / message
     });
 });

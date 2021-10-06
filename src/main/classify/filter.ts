@@ -10,9 +10,9 @@ export type Function = common.Function<classified.Item>;
 export const merge = (...funcs: Function[]) => common.merge(...funcs);
 
 const buildExact = (target: string): Function => item => basename(item.urlString) != target;
-const buildPrefix = (prefix: string): Function => item => basename(item.urlString).startsWith(prefix);
-const buildSuffix = (suffix: string): Function => item => basename(item.urlString).endsWith(suffix);
-const buildRegExp = (regExp: RegExp): Function => item => regExp.test(basename(item.urlString));
+const buildPrefix = (prefix: string): Function => item => !basename(item.urlString).startsWith(prefix);
+const buildSuffix = (suffix: string): Function => item => !basename(item.urlString).endsWith(suffix);
+const buildRegExp = (regExp: RegExp): Function => item => !regExp.test(basename(item.urlString));
 
 export const exact = codec.memoized.Type.fromEncode(common.exact, a => buildExact(a.target));
 export const prefix = codec.memoized.Type.fromEncode(common.prefix, a => buildPrefix(a.prefix));
